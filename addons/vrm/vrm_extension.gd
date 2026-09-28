@@ -1,3 +1,4 @@
+@tool
 extends GLTFDocumentExtension
 
 const vrm_constants_class = preload("./vrm_constants.gd")
@@ -702,7 +703,7 @@ func _create_joints_recursive(joint_chains: Array[PackedStringArray], skeleton: 
 func _parse_secondary_node(secondary_node: Node, vrm_extension: Dictionary, gstate: GLTFState, pose_diffs: Array[Basis], is_vrm_0: bool) -> void:
 	var nodes = gstate.get_nodes()
 	var skeletons = gstate.get_skeletons()
-
+	print("IMPORT VRM")
 	var skeleton: Skeleton3D = secondary_node.get_parent().get_node("%GeneralSkeleton")
 	var skeleton_path: NodePath = secondary_node.get_path_to(skeleton)
 	var offset_flip: Vector3 = Vector3(-1, 1, 1) if is_vrm_0 else Vector3(1, 1, 1)
@@ -778,9 +779,11 @@ func _parse_secondary_node(secondary_node: Node, vrm_extension: Dictionary, gsta
 					collider.radius = radius
 				added_colliders[cgroup_idx] = true
 
+		var base_i: int = main_spring_bone.setting_count
 		main_spring_bone.setting_count += joint_chains.size()
-		for chain_i in range(joint_chains.size()):
-			var chain: Array = joint_chains[chain_i]
+		for joint_chain_i in range(joint_chains.size()):
+			var chain: Array = joint_chains[joint_chain_i]
+			var chain_i: int = base_i + joint_chain_i
 			main_spring_bone.set_center_bone_name(chain_i, center_bone)
 			var root_bone = skeleton.find_bone(chain.front())
 			var end_bone = skeleton.find_bone(chain.back())
@@ -797,7 +800,9 @@ func _parse_secondary_node(secondary_node: Node, vrm_extension: Dictionary, gsta
 
 			if is_vrm_0:
 				main_spring_bone.set_extend_end_bone(chain_i, true)
-				main_spring_bone.set_end_bone_tip_radius(chain_i, 0.07)
+				main_spring_bone.set_end_bone_length(chain_i, 0.07)
+				main_spring_bone.set_end_bone_direction(chain_i, SkeletonModifier3D.BONE_DIRECTION_FROM_PARENT)
+				# main_spring_bone.set_end_bone_name(chain_i, chain.back())
 
 	# Set up the secondary node
 	secondary_node.set_script(vrm_secondary)
@@ -859,12 +864,15 @@ func _add_vrm_nodes_to_skin(obj: Dictionary) -> bool:
 	return true
 
 
-func _import_preflight(gstate: GLTFState, extensions: PackedStringArray = PackedStringArray(), psa2: Variant = null) -> Error:
+func _import_preflight(gstate, extensions):
+	print("before preflight")
 	if extensions.has("VRMC_vrm"):
 		# VRM 1.0 file. Do not parse as a VRM 0.0.
 		return ERR_INVALID_DATA
+	print("import preflight")
 	if typeof(gstate.get_additional_data(&"vrm/already_processed")) != TYPE_NIL:
 		return ERR_SKIP
+	print("import preflight done")
 	gstate.set_additional_data(&"vrm/already_processed", true)
 	var gltf_json_parsed: Dictionary = gstate.json
 	var gltf_nodes = gltf_json_parsed["nodes"]
@@ -877,18 +885,19 @@ func _import_preflight(gstate: GLTFState, extensions: PackedStringArray = Packed
 	return OK
 
 
-func _import_post_parse(state: GLTFState) -> Error:
-	var nodes := state.get_nodes()
+func _import_post_parse(state):
+	print("import post parse")
+	var nodes = state.get_nodes()
 	for n in nodes:
 		if typeof(n.get_additional_data(&"GODOT_rest_transform")) == TYPE_NIL:
 			n.set_additional_data(&"GODOT_rest_transform", n.get_xform())
 	return OK
 
 
-func _import_post(gstate: GLTFState, node: Node) -> Error:
+func _import_post(gstate, node):
 	var gltf: GLTFDocument = GLTFDocument.new()
 	var root_node: Node = node
-
+	print("import post")
 	var is_vrm_0: bool = true
 
 	var gltf_json: Dictionary = gstate.json
