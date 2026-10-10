@@ -10,4 +10,4 @@ The project expects a double-precision engine build.
 
 ## Licence
 
-The licence is not stated at the root. The VRM and toon-shader addons carry their own LICENSE files.
+MIT. See [LICENSE](LICENSE). The VRM and toon-shader addons carry their own LICENSE files.
